@@ -51,48 +51,8 @@ var producersListCmd = &cobra.Command{
 	},
 }
 
-func getProducersTable2(ctx context.Context, api *eos.API) (prods producers, err error) {
-	lowerBound := ""
-	for {
-		response, err := api.GetTableRows(
-			ctx,
-			eos.GetTableRowsRequest{
-				Scope:      "eosio",
-				Code:       "eosio",
-				Table:      "producers",
-				JSON:       true,
-				LowerBound: lowerBound,
-				Limit:      5000,
-			},
-		)
-		if err != nil {
-			return nil, fmt.Errorf("get producers table: %w", err)
-		}
-
-		var rows producers
-		json.Unmarshal(response.Rows, &rows)
-		if err != nil {
-			return nil, fmt.Errorf("json unmarshal: %w", err)
-		}
-
-		prods = append(prods, rows...)
-
-		if !response.More {
-			break
-		}
-
-		if len(rows) != 0 {
-			last := rows[len(rows)-1]
-			owner := last["owner"].(string)
-			val, _ := eos.StringToName(owner)
-			lowerBound = eos.NameToString(val + 1)
-		}
-	}
-	return
-}
-
 func requestProducers2(ctx context.Context, api *eos.API) (out map[string]bool, err error) {
-	producers, err := getProducersTable2(ctx, api)
+	producers, err := getProducersTable(ctx, api)
 	errorCheck("get producers table", err)
 
 	sort.Slice(producers, producers.Less)
@@ -118,59 +78,6 @@ func requestProducers2(ctx context.Context, api *eos.API) (out map[string]bool, 
 	}
 
 	return
-}
-
-func recurseAccounts2(ctx context.Context, api *eos.API, in map[string]bool, account string, permission string, level, maxLevels int) (out map[string]bool, err error) {
-	out = in
-
-	newAcct := fmt.Sprintf("%s@%s", account, permission)
-	if _, found := out[newAcct]; found {
-		return
-	}
-
-	fmt.Println("      - ADDING:", newAcct)
-	out[newAcct] = true
-
-	if level >= maxLevels {
-		return out, nil
-	}
-
-	//fmt.Println("Fetching account", account)
-	resp, err := api.GetAccount(ctx, eos.AccountName(account))
-	if err != nil {
-		return nil, err
-	}
-
-	curPerm := permissionByName2(resp.Permissions, permission)
-	for {
-		if !viper.GetBool("multisig-propose-cmd-with-owner") && curPerm.PermName == "owner" {
-			break
-		}
-
-		if curPerm.PermName == "" {
-			break
-		}
-
-		for _, acct := range curPerm.RequiredAuth.Accounts {
-			out, err = recurseAccounts2(ctx, api, out, string(acct.Permission.Actor), string(acct.Permission.Permission), level+1, maxLevels)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		curPerm = permissionByName2(resp.Permissions, curPerm.Parent)
-	}
-
-	return
-}
-
-func permissionByName2(perms []eos.Permission, name string) eos.Permission {
-	for _, perm := range perms {
-		if perm.PermName == name {
-			return perm
-		}
-	}
-	return eos.Permission{}
 }
 
 func init() {
