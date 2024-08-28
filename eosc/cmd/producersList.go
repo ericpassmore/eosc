@@ -27,11 +27,13 @@ var producersListCmd = &cobra.Command{
 		ctx := context.Background()
 		api := getAPI()
 
-		out, err := requestProducers(ctx, api)
+    var requested []eos.PermissionLevel
+		out, err := requestProducers2(ctx, api)
 		errorCheck("recursing to get producers accounts", err)
 
 		for el := range out {
 			chunks := strings.Split(el, "@")
+      fmt.Printf("Last Loop: %s\n", chunks[0])
 			requested = append(requested, eos.PermissionLevel{
 				Actor:      eos.AccountName(chunks[0]),
 				Permission: eos.PermissionName(chunks[1]),
@@ -49,14 +51,10 @@ var producersListCmd = &cobra.Command{
 			}
 			return el1.Permission < el2.Permission
 		})
-
-		pushEOSCActions(ctx, api,
-			msig.NewPropose(proposer, proposalName, requested, tx),
-		)
 	},
 }
 
-func getProducersTable(ctx context.Context, api *eos.API) (prods producers, err error) {
+func getProducersTable2(ctx context.Context, api *eos.API) (prods producers, err error) {
 	lowerBound := ""
 	for {
 		response, err := api.GetTableRows(
@@ -96,8 +94,8 @@ func getProducersTable(ctx context.Context, api *eos.API) (prods producers, err 
 	return
 }
 
-func requestProducers(ctx context.Context, api *eos.API) (out map[string]bool, err error) {
-	producers, err := getProducersTable(ctx, api)
+func requestProducers2(ctx context.Context, api *eos.API) (out map[string]bool, err error) {
+	producers, err := getProducersTable2(ctx, api)
 	errorCheck("get producers table", err)
 
 	sort.Slice(producers, producers.Less)
@@ -125,7 +123,7 @@ func requestProducers(ctx context.Context, api *eos.API) (out map[string]bool, e
 	return
 }
 
-func recurseAccounts(ctx context.Context, api *eos.API, in map[string]bool, account string, permission string, level, maxLevels int) (out map[string]bool, err error) {
+func recurseAccounts2(ctx context.Context, api *eos.API, in map[string]bool, account string, permission string, level, maxLevels int) (out map[string]bool, err error) {
 	out = in
 
 	newAcct := fmt.Sprintf("%s@%s", account, permission)
@@ -146,7 +144,7 @@ func recurseAccounts(ctx context.Context, api *eos.API, in map[string]bool, acco
 		return nil, err
 	}
 
-	curPerm := permissionByName(resp.Permissions, permission)
+	curPerm := permissionByName2(resp.Permissions, permission)
 	for {
 		if !viper.GetBool("multisig-propose-cmd-with-owner") && curPerm.PermName == "owner" {
 			break
@@ -157,19 +155,19 @@ func recurseAccounts(ctx context.Context, api *eos.API, in map[string]bool, acco
 		}
 
 		for _, acct := range curPerm.RequiredAuth.Accounts {
-			out, err = recurseAccounts(ctx, api, out, string(acct.Permission.Actor), string(acct.Permission.Permission), level+1, maxLevels)
+			out, err = recurseAccounts2(ctx, api, out, string(acct.Permission.Actor), string(acct.Permission.Permission), level+1, maxLevels)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		curPerm = permissionByName(resp.Permissions, curPerm.Parent)
+		curPerm = permissionByName2(resp.Permissions, curPerm.Parent)
 	}
 
 	return
 }
 
-func permissionByName(perms []eos.Permission, name string) eos.Permission {
+func permissionByName2(perms []eos.Permission, name string) eos.Permission {
 	for _, perm := range perms {
 		if perm.PermName == name {
 			return perm
