@@ -4,14 +4,12 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
 	eos "github.com/eoscanada/eos-go"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // producersListCmd represents the msigPropose command
