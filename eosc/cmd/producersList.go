@@ -5,14 +5,11 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
 	"sort"
 	"strings"
 
 	eos "github.com/eoscanada/eos-go"
-	"github.com/eoscanada/eos-go/msig"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
