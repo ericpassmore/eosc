@@ -161,7 +161,7 @@ func requestProducers(ctx context.Context, api *eos.API) (out map[string]bool, e
 
 	out = make(map[string]bool)
 	for idx, p := range producers {
-		if len(out) > 29 {
+		if len(out) > 39 {
 			break
 		}
 
